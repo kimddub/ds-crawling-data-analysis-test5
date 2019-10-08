@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- XML mapper dtd 등록 -->
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.company.demo.dao.CrawlingDao">
+
+	<!-- id sourceId 가 같은 데이터는 수정되어 올라온 이전 글 -> 업데이트 해준다. -->
+	<insert id="insert" parameterType="java.util.List">
+	    INSERT INTO article (id , regDate, sourceId, webPath, title, `body`, writer, colDate)
+		VALUES 
+		<foreach collection="list" item="article" separator=" , " >
+	    (
+	   		#{article.id}, 
+	   		#{article.regDate}, 
+	   		#{article.sourceId}, 
+	   		#{article.webPath}, 
+	   		#{article.title}, 
+	   		#{article.body}, 
+	   		#{article.writer}, 
+	   		NOW()
+	    )
+	    </foreach>
+		ON DUPLICATE KEY UPDATE
+			regDate = VALUES(regDate),
+			webPath = VALUES(webPath),
+			webPath = VALUES(webPath),
+			webPath = VALUES(webPath),
+			`body` = VALUES(`body`),
+			colDate = VALUES(colDate)
+	</insert>
+	
+	<select id="getLastDate" parameterType="integer" resultType="java.util.Date">
+		SELECT regDate
+		FROM article
+		WHERE sourceId = #{sourceID}
+		ORDER BY regDate DESC
+		LIMIT 1
+	</select>
+	
+	<select id="getAllSourceInfo" resultMap="SourceInfo">
+		SELECT *
+		FROM source
+		ORDER BY id ASC
+	</select>
+	
+	<delete id="truncate">
+		TRUNCATE article
+	</delete>
+	
+	<resultMap id="SourceInfo" type="Map">
+  		<result property="id" column="id"/>
+  		<result property="site" column="site"/>
+  		<result property="category" column="category"/>
+  		<result property="siteUrl" column="siteUrl"/>
+  		<result property="listUrl" column="listUrl"/>
+  		<result property="dateFormat" column="dateFormat"/>
+  	</resultMap> 
+</mapper>
+	
