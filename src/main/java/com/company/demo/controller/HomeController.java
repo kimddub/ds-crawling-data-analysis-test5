@@ -34,7 +34,7 @@ import com.company.demo.service.TextProcessorService;
 import jline.internal.Log;
 
 @Controller
-public class HomeController {
+public class HomeController { //+재탐색 +유동카테고리
 	@Autowired
 	CrawlingService crawlingService;
 	@Autowired
@@ -45,36 +45,6 @@ public class HomeController {
 	private static Logger logger = LoggerFactory.getLogger(DsCrawlingDataAnalysisTest5Application.class);
 	
 	// 초기 크롤러
-	// 재탐색 크롤러
-	// 다음 크롤러
-	// 팝카테고리 popCategory unregDate들 주기적으로 돌기
-	
-	@RequestMapping("test")
-	@ResponseBody
-	public String test() {
-		/*
-		 DOM 구조 추가 test
-		 https://sports.news.naver.com/kbaseball/news/read.nhn?oid=003&aid=0009502377
-		 +dateSelector: #content > div > div.content > div > div.news_headline > div.info > span:last-of-type
-		 https://news.naver.com/main/read.nhn?mode=LS2D&mid=shm&sid1=102&sid2=276&oid=029&aid=0002559196
-		 +bodySelector
-		 */
-		
-		Document page = null;
-		try {
-			
-			page = Jsoup.connect("https://news.naver.com/main/read.nhn?mode=LS2D&mid=shm&sid1=102&sid2=276&oid=029&aid=0002559196")
-							.get();
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		String bodySelector = "#articleBodyContents, #articeBody";
-		Elements body = page.select(bodySelector);
-		
-		return body.html();
-	}
-	
 	//@EventListener(ApplicationReadyEvent.class)
 	public void setUp() {
 		Log.info("setup crawling");
@@ -275,7 +245,7 @@ public class HomeController {
 		return "Crawling done successfully";
 	}
 	
-	//@Scheduled(cron = "0 0/30 * * * *") // 평일 정각마다 돌아감
+	@Scheduled(cron = "50 33 * * * *") // 평일 정각마다 돌아감
 	public String executeDaumCrawling() {
 			
 		Log.info("execute Daum Crawling");
@@ -292,6 +262,33 @@ public class HomeController {
 		//executeTextAnalysis();
 		
 		return "Crawling done successfully";
+	}
+	
+
+	@RequestMapping("test")
+	@ResponseBody
+	public String test() {
+		/*
+		 DOM 구조 추가 test
+		 https://sports.news.naver.com/kbaseball/news/read.nhn?oid=003&aid=0009502377
+		 +dateSelector: #content > div > div.content > div > div.news_headline > div.info > span:last-of-type
+		 https://news.naver.com/main/read.nhn?mode=LS2D&mid=shm&sid1=102&sid2=276&oid=029&aid=0002559196
+		 +bodySelector
+		 */
+		
+		Document page = null;
+		try {
+			
+			page = Jsoup.connect("https://news.naver.com/main/read.nhn?mode=LS2D&mid=shm&sid1=102&sid2=276&oid=029&aid=0002559196")
+							.get();
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String bodySelector = "#articleBodyContents, #articeBody";
+		Elements body = page.select(bodySelector);
+		
+		return body.html();
 	}
 	
 	/*

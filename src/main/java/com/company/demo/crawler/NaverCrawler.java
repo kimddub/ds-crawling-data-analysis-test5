@@ -60,7 +60,6 @@ public class NaverCrawler {
 				
 	}
 	
-	// 아직 기사 중복 해결은 안함 (리셋후 넣거나, 이 전 날짜의 기사 읽어오는 로직이 없는 상태이므로)
 	public List<Article> getUncrawlingArticles() {
 		return uncrawlingArticles;
 	}

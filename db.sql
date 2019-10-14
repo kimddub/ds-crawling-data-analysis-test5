@@ -47,6 +47,11 @@ VALUE (101,"102","276","사회","인물",1,0),
 	(102,"100","265","정치","국회/정당",1,0), 
 	(103,"105","732","IT/과학","보안/해킹",1,0);
 	
+INSERT INTO `category` 
+VALUE (201,"society","people?","사회","인물",2,0), 
+	(202,"politics","assembly?","정치","국회/정당",2,0), 
+	(203,"digital","software?","IT","소프트웨어",2,0);
+	
 
 # drop table `media`;
 CREATE TABLE `media`(
@@ -98,8 +103,13 @@ ON DUPLICATE KEY UPDATE
 	`body` = VALUES(`body`),
 	analysisState = 0;
 
-SELECT COUNT(*)
-FROM article;
+SELECT *
+FROM article
+WHERE siteCode=2;
+
+SET FOREIGN_KEY_CHECKS = 1;
+DELETE FROM article
+WHERE siteCode=2;
 
 # 해당 카테고리의 게시물 몇개?
 SELECT COUNT(*)

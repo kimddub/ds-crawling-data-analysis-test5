@@ -106,7 +106,11 @@ public class CrawlingServiceImpl implements CrawlingService {
 				// 각 크롤러에서 7일 전 ~ 현재 시간 계산한 문자열 가지고와서 출력
 			}
 			
-			naverCrawling(siteCode,category.getCode(),limitDate);
+			if (siteCode == 1) {
+				naverCrawling(siteCode,category.getCode(),limitDate);
+			} else if (siteCode == 2) {
+				daumCrawling(siteCode,category.getCode(),limitDate);
+			}
 		}
 	}
 	
@@ -143,17 +147,19 @@ public class CrawlingServiceImpl implements CrawlingService {
 		
 		// crawler
 		List<Article> articles = daumCrawler.crawling(sectionId,subSectionId,limitDate);
-//		writeHistory("period to crawling: " + daumCrawler.getPeriodToCrawling()
-//						+ "\n - crawling data: " + articles.size()
-//						+ "\n - uncrawling data:" );
 		
-		collectData(articles,siteCode,categoryCode);
+		writeHistory("period to crawling: " + daumCrawler.getPeriodToCrawling()
+						+ "\n - crawling data: " + articles.size()
+						+ "\n - uncrawling data(DOM error):" );
+		
 		
 		List<Article> uncrawlArticles = daumCrawler.getUncrawlingArticles();
 		
 		for(Article uncrawlingData:uncrawlArticles) {
 			writeHistory("\t" + uncrawlingData.getWebPath());
 		}
+		
+		collectData(articles,siteCode,categoryCode);
 	}
 
 	public void collectData(List<Article> articles, int siteCode, int categoryCode) {
@@ -165,6 +171,8 @@ public class CrawlingServiceImpl implements CrawlingService {
 		
 		// 하나씩 insert
 		for (Article article:articles) {
+			System.out.println(article.getWebPath());
+			
 			try {
 				//media -> 있으면 code 가져오고, 없으면 추가한 후에 가져오기
 				Integer mediaCode = articleDao.getMediaCode((String)article.getExtra().get("media"));
@@ -206,6 +214,8 @@ public class CrawlingServiceImpl implements CrawlingService {
 					
 					articleDao.updateArticle(article);
 					articleDao.resetArticleKeyword(article);
+					
+					System.out.println(article.getWebPath());
 					
 					updateData++;
 				}
