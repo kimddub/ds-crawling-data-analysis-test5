@@ -20,9 +20,10 @@ import org.springframework.stereotype.Component;
 import com.company.demo.dto.Article;
 
 @Component
-public class DaumCrawler {
+public class NaverCrawler {
 	private final static String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.152 Safari/537.36";
 
+	String periodToCrawling;
 	List<Article> uncrawlingArticles;
 	SimpleDateFormat dateFormatter;
 	boolean continueToCrawling;
@@ -31,6 +32,9 @@ public class DaumCrawler {
 	String sectionId;
 	String subSectionId;
 	String categoryUrl;
+	
+	//???
+	String nextPageText = "다음"; // 마지막 페이지를 알아올 때 넘김 페이지 텍스트가 넘어오면 넘겨 확인해야 함
 	
 	//DB site에서 꺼내올것
 	String listUrl = "https://news.naver.com/main/list.nhn?mode=LS2D&mid=shm";
@@ -41,12 +45,15 @@ public class DaumCrawler {
 	String lastPageSelector = "#main_content > div.paging > a:last-child, #main_content > div.paging > strong:last-child";
 	String mediaSelector = "#main_content > div.list_body.newsflash_body > ul > li > dl > dd > span.writing";
 	String detailPageSelector = "#main_content > div.list_body.newsflash_body > ul > li > dl > dt:not(.photo) > a";
-	String dateSelector = "#main_content > div.article_header > div.article_info > div > span:last-of-type, #content > div.end_ct > div > div.article_info > span:last-of-type > em";
+	String dateSelector = "#main_content > div.article_header > div.article_info > div > span:last-of-type"
+			+", #content > div.end_ct > div > div.article_info > span:last-of-type > em"
+			+", #content > div > div.content > div > div.news_headline > div.info > span:last-of-type";
+	// Naver date 셀렉터 차이 및 구조별 불필요 문자 제거
 	String bodySelector = "#articleBodyContents, #articeBody"; //
 	String idSelectorInUrl = "aid=";
 	
 	
-	DaumCrawler() {
+	NaverCrawler() {
 		//기본 셋팅(공통)
 		String dateFormat= "yyyyMMdd";
 		dateFormatter = new SimpleDateFormat(dateFormat);
@@ -56,6 +63,10 @@ public class DaumCrawler {
 	// 아직 기사 중복 해결은 안함 (리셋후 넣거나, 이 전 날짜의 기사 읽어오는 로직이 없는 상태이므로)
 	public List<Article> getUncrawlingArticles() {
 		return uncrawlingArticles;
+	}
+	
+	public String getPeriodToCrawling() {
+		return periodToCrawling;
 	}
 	
 	private void setLimitDate(Date limitDate) {
@@ -72,9 +83,11 @@ public class DaumCrawler {
 		
 			this.limitDate = limitDate;
 		}
+		
+		System.out.println("Set LimitData(Naver Crawler): " + this.limitDate);
 	}
 	
-	public List<Article> crawling(String sectionId, String subSectionId, Date limitDate) {
+	public List<Article> crawling(String sectionId, String subSectionId, Date limitDateBeforeSet) {
 		uncrawlingArticles = new ArrayList<>();
 		
 		this.sectionId = sectionId;
@@ -82,7 +95,9 @@ public class DaumCrawler {
 		
 		categoryUrl = categoryUrl1 + sectionId + categoryUrl2 + subSectionId;
 		
-		setLimitDate(limitDate);
+		setLimitDate(limitDateBeforeSet);
+		
+		periodToCrawling = limitDate + " ~ " + new Date().toString();
 		
 		// 업데이트 되도 그 자리에 있다.
 		// 페이지 넘겨가며 찾을 때 없는 페이지 입력하면 1/또는 끝페이지로 처리
@@ -124,7 +139,6 @@ public class DaumCrawler {
 		*/
 
 		String limitDateStr = dateFormatter.format(limitDate); // 페이지 url 파라미터 및 크롤링 멈출 날짜
-		Date limitTime = (Date)limitDate.clone(); // 크롤링 멈출 날짜 페이지에서 시간 비교
 		int limitPage = 1; // 날짜 당기거나 크롤링 멈출 마지막 페이지
 		
 		Date today = new Date();
@@ -145,8 +159,15 @@ public class DaumCrawler {
         	}
         	
         	if (isLastDate && isLastPage) { // 크롤링 마지막 날짜에 마지막 페이지까지 크롤링 후
+
+        		//크롤링 할 날짜의 페이지에서 첫 게시글이 크롤링 할 시간보다 뒤일때 발생할 수 있는 경우 - 예외아님
         		
-        		System.out.println("이 에러가 나오면 예외처리 해야함");
+        		//ㄹSystem.out.println("mistake to find last page");
+        		// 비교해야 할 날짜가 있는 페이지를 넘어갔을 때
+        		// 다음페이지를 찾지 못하고 현재의 끝 페이지 번호만 찾았을 땐 예외임
+        		// 11일자의 13페이지에 있는 오전 1시의 기사가 마지막이었을 때
+        		// 11일자 10페이지까지만 훑고 다음 일자로 넘어가려 하면 뜬다.
+        		
         		break;
         	}
         	
@@ -183,22 +204,39 @@ public class DaumCrawler {
         	
         	// 날짜별로 마지막 페이지가 다르므로 한번 가져옴
         	if (crawlingPage == 1) {
-        		limitPage = getLastPageNum(listPage); 
+        		limitPage = getLastPageNum(crawlingDate, crawlingPage); 
+
+            	System.out.println("\n*" + crawlingDate + " last page: "+ limitPage); // 크롤링 날짜의 마지막 페이지 확인
+        	}
+        	
+        	if (limitPage == -1) { //마지막 페이지를 알 수 없는 날짜의 기사목록
+
+        		Article error = new Article();
+        		error.setWebPath("Not Found last page of date(" + crawlingDate + ") list");
+        		uncrawlingArticles.add(error);
+        		
+        		if (isLastDate) {
+        			break;
+        		}
+        		
+        		isLastPage = true; // 다음 날짜 크롤링
+        		
         	}
         	
         	// 2. 현재 페이지의 게시글 본문 크롤링을 위한 정보를 담아옴
         	articleInfoList = getArticleInfoListFromOnePage(listPage);
         	
+        	System.out.print(crawlingPage); //크롤링 하는 페이지 넘김 확인
         	
         	if (isLastDate) {
         		
         		// 3. 마지막 날짜일때만 게시물 본문에서 멈출 시간의 기사인지 비교하면서 담아옴
-        		articles.addAll(getArticlesFromDetailUrlWithinDate(articleInfoList, limitTime)); // 기사 목록에 쌓기
+        		articles.addAll(getArticlesFromDetailUrlWithinDate(articleInfoList,true)); // 기사 목록에 쌓기
         		
         	} else {
         		
         		// 3. 페이지의 기사를 모두 담아옴 -> 모두 insert/ update
-        		articles.addAll(getArticlesFromDetailUrl(articleInfoList)); // 기사 목록에 쌓기
+        		articles.addAll(getArticlesFromDetailUrlWithinDate(articleInfoList,false)); // 기사 목록에 쌓기
         		
         		/*
         		 오늘이 11일 이고, 최근 가져온 기사의 날짜가 10일 일때,
@@ -239,20 +277,38 @@ public class DaumCrawler {
 		return getPage(listUrl+categoryUrl+pageUrl+dateUrl);
 	}
 
-	private int getLastPageNum(Document listPage) {
+	private int getLastPageNum(String crawlingDate, int currentFirstPage) {
+		
+		Document listPage = getListPage(crawlingDate, currentFirstPage);
+		
 		Elements lastPageNums = listPage.select(lastPageSelector);
 		
 		int lastPageNum = 1;
 		
-		for (Element PageNum:lastPageNums) {
-			lastPageNum = Integer.parseInt(lastPageNums.text().trim());
+		for (Element pageNum:lastPageNums) {
+			
+			String pageNumStr = pageNum.text().trim();
+			
+			// 네이버의 경우
+			if (pageNumStr.equals("다음")) {
+				
+				lastPageNum = getLastPageNum(crawlingDate,currentFirstPage+10);
+			} else {
+			
+				try{
+					lastPageNum = Integer.parseInt(pageNumStr);
+				}catch(Exception e){
+			    	System.out.println("Not found last Page");
+			    	return -1;
+			    }
+			}
 		}
 		
 		return lastPageNum;
 	}
 	
 	// 3. 기사본문 크롤링 (시간비교)
-	private List<Article> getArticlesFromDetailUrlWithinDate(List<Map<String,String>> articleInfoList, Date limitTime) {
+	private List<Article> getArticlesFromDetailUrlWithinDate(List<Map<String,String>> articleInfoList, boolean isCompareToDate) {
 		List<Article> articles = new ArrayList<>();
 		
 		Document detailPage = null;
@@ -273,71 +329,26 @@ public class DaumCrawler {
 				SimpleDateFormat timeFormatter = new SimpleDateFormat(timeFormat);
 				
 				try {
+					
+					// Naver date 포맷 불필요 문자 제거
+					if (dateStr.contains("수정")) {
+						dateStr = dateStr.split("수정")[1].trim();
+					}
+					
 					date = timeFormatter.parse(dateStr);
 				} catch (ParseException e) {
 					e.printStackTrace();
 				}
 			}
 			
-			// 최신 데이터의 시간과 같거나 이전 시간의 기사 나타남 
-			if (date.compareTo(limitTime) < 1) {
-				System.out.println("stop to crawling - already crawling data time");
-				
-				continueToCrawling = false;
-				return articles;
-			}
-			
-			//계속 기사 긁음
-			String body = detailPage.select(bodySelector).text();
-			
-			String id = detailPageUrl.split(idSelectorInUrl)[1];
-			
-			Article article = new Article();
-			
-			article.setId(id);
-			article.setExtra(Maps.of("media",(String)articleInfo.get("media")));
-			article.setWebPath(detailPageUrl);
-			article.setRegDate(date);
-//			article.setTitle(title);
-			article.setBody(body);
-			
-			// 크롤링한 기사의 본문이 긁히지 않았다면 DB에 입력하지 않는다.
-			if (article.getBody().length()==0 || article.getRegDate()==null) {
-				uncrawlingArticles.add(article);
-			} else {
-				articles.add(article);
-			}
-		}
-		
-		return articles;
-		
-	}
-	
-	// 3. 기사본문 크롤링
-	private List<Article> getArticlesFromDetailUrl(List<Map<String,String>> articleInfoList) {
-		List<Article> articles = new ArrayList<>();
-		
-		Document detailPage = null;
-		String detailPageUrl = "";
-		
-		for (Map<String,String> articleInfo:articleInfoList) {
-
-			detailPageUrl = (String)articleInfo.get("detailPageUrl");
-			detailPage = getPage(detailPageUrl);
-			
-			Elements dateElement = detailPage.select(dateSelector);
-			String dateStr = dateElement.text().trim();
-			
-			Date date = null;
-			
-			if (dateStr.length() != 0) {
-				// 기사 본문 시간과 크롤링 멈출 시간인지 비교위해 date로 변환
-				SimpleDateFormat timeFormatter = new SimpleDateFormat(timeFormat);
-				
-				try {
-					date = timeFormatter.parse(dateStr);
-				} catch (ParseException e) {
-					e.printStackTrace();
+			// 시간 비교를 하며 기사를 가져와야 함 (limitDate 목록)
+			if (isCompareToDate) {
+				// 최신 데이터의 시간과 같거나 이전 시간의 기사 나타남 
+				if (date.compareTo(limitDate) < 1) {
+					System.out.println("stop to crawling - already crawling data time");
+					
+					continueToCrawling = false;
+					return articles;
 				}
 			}
 			

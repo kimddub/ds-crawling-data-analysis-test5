@@ -10,15 +10,12 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Article {
+public class Category {
 	private int code;
-	private String id;
+	private String sectionId;
+	private String subSectionId;
+	private String section;
+	private String subSection;
 	private int siteCode;
-	private int mediaCode;
-	private String webPath;
-	private Date regDate;
-	private Date colDate;
-	private String body;
-	private boolean analysisState;
-	private Map<String,Object> extra;
+	private boolean popState;
 }

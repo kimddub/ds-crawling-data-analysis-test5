@@ -1,3 +1,5 @@
+custom:
+  filelPath: C:\work\daumsoft-probation\T5_1014\history
 server:
   port: 8015
 spring:
